@@ -11,4 +11,5 @@ mod peer_manager;
 pub mod routing;
 mod stats;
 pub mod test_utils;
+mod tests;
 pub mod types;

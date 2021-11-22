@@ -22,4 +22,5 @@ mod info;
 mod metrics;
 pub mod sync;
 pub mod test_utils;
+mod tests;
 mod view_client;
