@@ -1486,7 +1486,7 @@ impl EpochManager {
 }
 
 #[cfg(test)]
-mod tests {
+mod tests2 {
     use num_rational::Rational;
 
     use near_primitives::challenge::SlashedValidator;

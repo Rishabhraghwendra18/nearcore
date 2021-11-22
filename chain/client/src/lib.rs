@@ -22,5 +22,6 @@ mod info;
 mod metrics;
 pub mod sync;
 pub mod test_utils;
+#[cfg(test)]
 mod tests;
 mod view_client;
