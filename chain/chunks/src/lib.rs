@@ -391,16 +391,16 @@ pub struct ShardsManager {
 
     encoded_chunks: EncodedChunksCache,
     requested_partial_encoded_chunks: RequestPool,
-    // Temporary place to store PartialEncodedChunks if they can't be processed yet at the time
-    // when they are received
-    // A partial chunk is removed here if it is processed or it is too old
+    /// Temporary place to store PartialEncodedChunks if they can't be processed yet at the time
+    /// when they are received
+    /// A partial chunk is removed here if it is processed or it is too old
     stored_partial_encoded_chunks:
         HashMap<BlockHeight, HashMap<ShardId, Vec<PartialEncodedChunkV2>>>,
     chunk_forwards_cache: SizedCache<ChunkHash, HashMap<u64, PartialEncodedChunkPart>>,
 
     seals_mgr: SealsManager,
-    // Useful to make tests deterministic and reproducible,
-    // while keeping the security of randomization of transactions in pool
+    /// Useful to make tests deterministic and reproducible,
+    /// while keeping the security of randomization of transactions in pool
     rng_seed: RngSeed,
 }
 
@@ -2109,5 +2109,24 @@ mod test {
                 }
             })
             .is_none());
+    }
+
+    #[test]
+    fn test_random_seed_with_shard_id() {
+        let seed0 = ShardsManager::random_seed(&TEST_SEED, 0);
+        let seed10 = ShardsManager::random_seed(&TEST_SEED, 10);
+        let seed256 = ShardsManager::random_seed(&TEST_SEED, 256);
+        let seed1000 = ShardsManager::random_seed(&TEST_SEED, 1000);
+        let seed1000000 = ShardsManager::random_seed(&TEST_SEED, 1_000_000);
+        assert_ne!(seed0, seed10);
+        assert_ne!(seed0, seed256);
+        assert_ne!(seed0, seed1000);
+        assert_ne!(seed0, seed1000000);
+        assert_ne!(seed10, seed256);
+        assert_ne!(seed10, seed1000);
+        assert_ne!(seed10, seed1000000);
+        assert_ne!(seed256, seed1000);
+        assert_ne!(seed256, seed1000000);
+        assert_ne!(seed1000, seed1000000);
     }
 }

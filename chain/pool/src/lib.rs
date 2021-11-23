@@ -28,7 +28,7 @@ pub struct TransactionPool {
 impl TransactionPool {
     pub fn new(key_seed: RngSeed) -> Self {
         Self {
-            key_seed: key_seed, //rand::thread_rng().next_u64().to_le_bytes().to_vec(),
+            key_seed,
             transactions: BTreeMap::new(),
             unique_transactions: HashSet::new(),
             last_used_key: CryptoHash::default(),
