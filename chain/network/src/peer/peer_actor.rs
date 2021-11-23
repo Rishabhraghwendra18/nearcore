@@ -16,8 +16,6 @@ use actix::{
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 use cached::{Cached, SizedCache};
-#[cfg(feature = "delay_detector")]
-use delay_detector::DelayDetector;
 use near_crypto::Signature;
 use near_network_primitives::types::{
     Ban, NetworkViewClientMessages, NetworkViewClientResponses, PeerChainInfo, PeerChainInfoV2,
@@ -986,7 +984,7 @@ impl Handler<SendMessage> for PeerActor {
     #[perf]
     fn handle(&mut self, msg: SendMessage, _: &mut Self::Context) {
         #[cfg(feature = "delay_detector")]
-        let _d = DelayDetector::new("send message".into());
+        let _d = delay_detector::DelayDetector::new("send message".into());
         self.send_message(&msg.message);
     }
 }
@@ -997,7 +995,7 @@ impl Handler<Arc<SendMessage>> for PeerActor {
     #[perf]
     fn handle(&mut self, msg: Arc<SendMessage>, _: &mut Self::Context) {
         #[cfg(feature = "delay_detector")]
-        let _d = DelayDetector::new("send message".into());
+        let _d = delay_detector::DelayDetector::new("send message".into());
         self.send_message(&msg.as_ref().message);
     }
 }
@@ -1008,7 +1006,7 @@ impl Handler<QueryPeerStats> for PeerActor {
     #[perf]
     fn handle(&mut self, msg: QueryPeerStats, _: &mut Self::Context) -> Self::Result {
         #[cfg(feature = "delay_detector")]
-        let _d = DelayDetector::new("query peer stats".into());
+        let _d = delay_detector::DelayDetector::new("query peer stats".into());
         PeerStatsResult {
             chain_info: self.chain_info.clone(),
             received_bytes_per_sec: self.tracker.received_bytes.bytes_per_min() / 60,
@@ -1028,7 +1026,8 @@ impl Handler<PeerManagerRequest> for PeerActor {
     #[perf]
     fn handle(&mut self, msg: PeerManagerRequest, ctx: &mut Self::Context) -> Self::Result {
         #[cfg(feature = "delay_detector")]
-        let _d = DelayDetector::new(format!("peer manager request {:?}", msg).into());
+        let _d =
+            delay_detector::DelayDetector::new(format!("peer manager request {:?}", msg).into());
         match msg {
             PeerManagerRequest::BanPeer(ban_reason) => {
                 self.ban_peer(ctx, ban_reason);
