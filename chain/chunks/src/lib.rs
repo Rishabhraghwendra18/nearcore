@@ -794,14 +794,24 @@ impl ShardsManager {
             pool.remove_transactions(transactions)
         }
     }
+
+    /// Computes a deterministic random seed for given `shard_id`.
+    /// This seed is used to randomize the transaction pool.
+    /// For better security we want the seed to different in each shard.
+    /// For testing purposes we want it to be the reproducible and derived from the `self.rng_seed` and `shard_id`
+    fn random_seed(base_seed: &RngSeed, shard_id: ShardId) -> RngSeed {
+        let mut res = base_seed.clone();
+        res[0] = shard_id as u8;
+        res[1] = (shard_id / 256) as u8;
+        res
+    }
+
     fn pool_for_shard(&mut self, shard_id: ShardId) -> &mut TransactionPool {
         match self.tx_pools.entry(shard_id) {
-            Vacant(_) => {
-                self.tx_pools.insert(shard_id, TransactionPool::new(self.random_seed(shard_id)));
-            }
-            Occupied(_) => {}
-        };
-        self.tx_pools.get_mut(&shard_id).unwrap()
+            Vacant(entry) => entry
+                .insert(TransactionPool::new(ShardsManager::random_seed(&self.rng_seed, shard_id))),
+            Occupied(entry) => entry.into_mut(),
+        }
     }
 
     pub fn reintroduce_transactions(
@@ -1735,17 +1745,6 @@ impl ShardsManager {
         self.decode_and_persist_encoded_chunk(encoded_chunk, chain_store, merkle_paths)?;
 
         Ok(())
-    }
-
-    /// Computes a deterministic random seed for given `shard_id`.
-    /// This seed is used to randomize the transaction pool.
-    /// For better security we want the seed to different in each shard.
-    /// For testing purposes we want it to be the reproducible and derived from the `self.rng_seed` and `shard_id`
-    fn random_seed(&self, shard_id: ShardId) -> RngSeed {
-        let mut res = self.rng_seed.clone();
-        res[0] = shard_id as u8;
-        res[1] = (shard_id / 256) as u8;
-        res
     }
 }
 
