@@ -59,7 +59,7 @@ use crate::routing::routing_table_actor::Prune;
 #[cfg(feature = "test_features")]
 use crate::types::SetAdvOptions;
 use crate::types::{
-    Consolidate, ConsolidateResponse, EdgeList, GetPeerId, GetPeerIdResult, NetworkInfo,
+    Consolidate, ConsolidateResponse, EdgeListToValidate, GetPeerId, GetPeerIdResult, NetworkInfo,
     PeerManagerMessageRequest, PeerManagerMessageResponse, PeerMessage, PeerRequest, PeerResponse,
     PeersRequest, PeersResponse, SendMessage, StopMsg, SyncData, Unregister,
 };
@@ -92,7 +92,7 @@ const EXPONENTIAL_BACKOFF_LIMIT: u64 = 91;
 /// Limit number of pending Peer actors to avoid OOM.
 const LIMIT_PENDING_PEERS: usize = 60;
 /// How ofter should we broadcast edges.
-const BROADCAST_EDGES_INTERVAL: Duration = Duration::from_millis(50);
+const BROADCAST_VALIDATED_EDGES_INTERVAL: Duration = Duration::from_millis(50);
 /// Maximum amount of time spend processing edges.
 const BROAD_CAST_EDGES_MAX_WORK_ALLOWED: Duration = Duration::from_millis(50);
 /// Delay syncinc for 1 second to avoid race condition
@@ -373,7 +373,7 @@ impl PeerManagerActor {
 
     /// Receives list of edges that were verified, in a trigger every 20ms, and adds them to
     /// the routing table.
-    fn broadcast_edges_trigger(&mut self, ctx: &mut Context<PeerManagerActor>) {
+    fn broadcast_validated_edges_trigger(&mut self, ctx: &mut Context<PeerManagerActor>) {
         let start = Clock::instant();
         let mut new_edges = Vec::new();
         while let Some(edge) = self.routing_table_exchange_helper.edges_to_add_receiver.pop() {
@@ -428,9 +428,9 @@ impl PeerManagerActor {
 
         near_performance_metrics::actix::run_later(
             ctx,
-            BROADCAST_EDGES_INTERVAL,
+            BROADCAST_VALIDATED_EDGES_INTERVAL,
             move |act, ctx| {
-                act.broadcast_edges_trigger(ctx);
+                act.broadcast_validated_edges_trigger(ctx);
             },
         );
     }
@@ -1209,13 +1209,22 @@ impl PeerManagerActor {
         );
     }
 
-    fn verify_edges(&mut self, ctx: &mut Context<Self>, peer_id: PeerId, edges: Vec<Edge>) {
+    /// Sends list of edges to check their signatures to `EdgeVerifierActor`.
+    /// Bans peers if an invalid edge is found.
+    /// `PeerManagerActor` periodically runs `broadcast_validated_edges_trigger`, which gets edges
+    /// from `EdgeVerifierActor` concurrent queue and sends edges to be added to `RoutingTableActor`.
+    fn validate_edges_and_add_to_routing_table(
+        &mut self,
+        ctx: &mut Context<Self>,
+        peer_id: PeerId,
+        edges: Vec<Edge>,
+    ) {
         if edges.is_empty() {
             return;
         }
         self.edge_verifier_requests_in_progress += 1;
         self.edge_verifier_pool
-            .send(EdgeList {
+            .send(EdgeListToValidate {
                 edges,
                 edges_info_shared: self.routing_table_exchange_helper.edges_info_shared.clone(),
                 sender: self.routing_table_exchange_helper.edges_to_add_sender.clone(),
@@ -1569,8 +1578,8 @@ impl Actor for PeerManagerActor {
         // Start active peer stats querying.
         self.monitor_peer_stats_trigger(ctx);
 
-        // Read verified edges and broadcast them.
-        self.broadcast_edges_trigger(ctx);
+        // Read valid edges from `EdgesVerifierActor` and broadcast.
+        self.broadcast_validated_edges_trigger(ctx);
 
         // Update routing table and prune edges that are no longer reachable.
         self.update_routing_table_trigger(ctx);
@@ -1874,7 +1883,7 @@ impl PeerManagerActor {
                         actix::fut::ready(())
                     }).spawn(ctx);
 
-                self.verify_edges(ctx, peer_id, edges);
+                self.validate_edges_and_add_to_routing_table(ctx, peer_id, edges);
 
                 NetworkResponses::NoResponse
             }
@@ -2365,7 +2374,7 @@ impl PeerManagerActor {
     ) {
         let mut edges: Vec<Edge> = Vec::new();
         swap(&mut edges, &mut ibf_msg.edges);
-        self.verify_edges(ctx, peer_id.clone(), edges);
+        self.validate_edges_and_add_to_routing_table(ctx, peer_id.clone(), edges);
         self.routing_table_addr
             .send(RoutingTableMessages::ProcessIbfMessage { peer_id: peer_id.clone(), ibf_msg })
             .into_actor(self)

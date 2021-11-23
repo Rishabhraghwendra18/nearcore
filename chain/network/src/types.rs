@@ -802,7 +802,7 @@ pub enum NetworkRequests {
     },
 }
 
-pub struct EdgeList {
+pub struct EdgeListToValidate {
     pub(crate) edges: Vec<Edge>,
     pub(crate) edges_info_shared: Arc<Mutex<HashMap<(PeerId, PeerId), u64>>>,
     pub(crate) sender: QueueSender<Edge>,
@@ -810,7 +810,7 @@ pub struct EdgeList {
     pub(crate) adv_disable_edge_signature_verification: bool,
 }
 
-impl Message for EdgeList {
+impl Message for EdgeListToValidate {
     type Result = bool;
 }
 
