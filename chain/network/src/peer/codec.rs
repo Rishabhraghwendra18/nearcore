@@ -109,7 +109,7 @@ fn peer_id_type_field_len(enum_var: u8) -> Option<usize> {
     }
 }
 
-pub(crate) fn is_forward_tx(bytes: &[u8]) -> Option<bool> {
+pub(crate) fn is_forward_transaction(bytes: &[u8]) -> Option<bool> {
     let peer_message_variant = *bytes.get(0)?;
 
     // PeerMessage::Routed variant == 13
@@ -152,7 +152,7 @@ pub(crate) fn is_forward_tx(bytes: &[u8]) -> Option<bool> {
 
 #[cfg(test)]
 mod test {
-    use crate::peer::codec::{is_forward_tx, Codec, NETWORK_MESSAGE_MAX_SIZE_BYTES};
+    use crate::peer::codec::{is_forward_transaction, Codec, NETWORK_MESSAGE_MAX_SIZE_BYTES};
     use crate::routing::edge::EdgeInfo;
     use crate::types::{Handshake, HandshakeFailureReason, HandshakeV2, PeerMessage, SyncData};
     use crate::PeerInfo;
@@ -259,7 +259,7 @@ mod test {
         schemas.for_each(|s| {
             let msg = create_tx_forward(s);
             let bytes = msg.try_to_vec().unwrap();
-            assert!(is_forward_tx(&bytes).unwrap());
+            assert!(is_forward_transaction(&bytes).unwrap());
         })
     }
 
