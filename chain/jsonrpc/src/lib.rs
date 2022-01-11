@@ -1253,10 +1253,14 @@ fn status_handler(
 
     let response = async move {
         match handler.status().await {
-            Ok(value) => Ok(HttpResponse::Ok().json(&value)),
+            Ok(value) => {
+                println!("Output: {:?}",value);
+                return Ok(HttpResponse::Ok().json(&value))
+            },
             Err(_) => Ok(HttpResponse::ServiceUnavailable().finish()),
         }
     };
+    
     response.boxed()
 }
 
